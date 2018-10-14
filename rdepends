@@ -1,0 +1,183 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+# Copyright © 2018 SUSE LLC
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation; version 2.1.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Author: Zoltán Balogh <zbalogh@suse.com>
+
+# Summary: Simple tool to discover reverse dependency of packages with
+# zypper. The method is to list the symbols the package provides and search
+# for packages require the given symbol.
+
+import subprocess
+import os
+import sys
+import re
+
+# Class to use colorful text output when the script is used on tty
+
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+
+    def disable(self):
+        self.HEADER = ''
+        self.OKBLUE = ''
+        self.OKGREEN = ''
+        self.WARNING = ''
+        self.FAIL = ''
+        self.ENDC = ''
+
+# Logging function if the script is used on ttz
+
+
+def log_text(text):
+    if consol_log:
+        sys.stdout.write("%s\r" % text)
+        sys.stdout.flush()
+        sys.stdout.write("\033[K")  # Clear to the end of line
+    else:
+        print(text)
+
+# List the symbols the given package provides
+
+
+def package_provides(package):
+    try:
+        zypper_process = subprocess.Popen(["zypper",
+                                           "info",
+                                           "--provides",
+                                           "%s" % package],
+                                          stdin=subprocess.PIPE,
+                                          stdout=subprocess.PIPE,
+                                          stderr=subprocess.PIPE)
+    except OSError as e:
+        return False, "Could not execute zypper ({0}): {1}".format(e.errno,
+                                                                   e.strerror)
+    stdout_value, stderr_value = zypper_process.communicate()
+    if stderr_value:
+        return False, stderr_value.decode("utf-8")
+    start = False
+    provided_symbols = set()
+    for line in stdout_value.splitlines():
+        if re.match("^Provides.*", line):
+            start = True
+            continue
+        if start:
+            m = re.match("^\s+([^\s]+).*", line)
+            if m:
+                provided_symbols.add(m.group(1))
+        if not start and re.match("package '%s' not found." % package, line):
+            return False, line
+    return True, provided_symbols
+
+# Search for packaages what require the given symbol
+
+
+def searh_requires(symbol):
+    try:
+        zypper_process = subprocess.Popen(["zypper",
+                                           "--xmlout",
+                                           "search",
+                                           "-s",
+                                           "--requires",
+                                           "--match-exact",
+                                           "%s" % symbol],
+                                          stdin=subprocess.PIPE,
+                                          stdout=subprocess.PIPE,
+                                          stderr=subprocess.PIPE)
+    except OSError as e:
+        return False, "Could not execute zypper ({0}): {1}".format(e.errno,
+                                                                   e.strerror)
+    stdout_value, stderr_value = zypper_process.communicate()
+    if stderr_value:
+        return False, stderr_value.decode("utf-8")
+    packages = set()
+    for line in stdout_value.splitlines():
+        m = re.match("^<solvable.*name=\"(\S+)\".*", line)
+        if m:
+            if detailed:
+                packages.add(line)
+            else:
+                packages.add(m.group(1))
+    return True, packages
+
+# recursive function to discover the reverse dependencies from as deep as
+# necessary. Shows only one level reverse dependency if the --full-tree
+# parameter is not used
+
+
+def reverse_dependencies(package):
+    global merged_result
+    fetched, search_result = package_provides(package)
+    if not fetched:
+        log_text(search_result)
+        sys.exit()
+    else:
+        for symbol in search_result:
+            found, search_result = searh_requires(symbol)
+            if found:
+                merged_result = set().union(merged_result, search_result)
+                if full_tree:
+                    for dependency_package in search_result:
+                        if detailed:
+                            m = re.match("^<solvable.*name=\"(\S+)\".*",
+                                         dependency_package)
+                            if m:
+                                reverse_dependencies(m.group(1))
+                        else:
+                            reverse_dependencies(dependency_package)
+
+
+if os.isatty(sys.stdout.fileno()):
+    consol_log = True
+else:
+    bcolors = bcolors()
+    bcolors.disable()
+    consol_log = False
+
+# Handle process arguments. Getopt is not optimal in this case as it is
+# better to keep te single package name parameter usage possible
+
+detailed = False
+full_tree = False
+argset = set(sys.argv)
+if ("--detailed" in argset) or ("-d" in argset):
+    detailed = True
+if ("--full-tree" in argset) or ("-f" in argset):
+    full_tree = True
+for arg in sys.argv:
+    if arg != sys.argv[0] and re.match("^[^-].*", arg):
+        root_package = arg
+        break
+try:
+    root_package
+except NameError:
+    sys.exit()
+merged_result = set()
+
+
+# Call the reverse dependency resolving function with the root package
+
+reverse_dependencies(root_package)
+
+# Print the result of the process to the STDOUT.
+
+for package in sorted(merged_result):
+    print(package)
