@@ -16,10 +16,16 @@ and uses zypper
 ## How to use
 
 $ rdepends [ packagename ] [--details] [--full-tree]
-Simple usecase
+## Simple usecase
+To list the packages directly depend on the package
 ```
 $ rdepends [package name]
 ```
+To list the packages with all details directly or indirectly depend on the package
+```
+$ rdepends [package name] --details --full-tree
+```
+
 
 ## Options and parameters
 
