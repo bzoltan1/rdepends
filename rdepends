@@ -158,6 +158,17 @@ else:
 detailed = False
 full_tree = False
 argset = set(sys.argv)
+if ("--help" in argset) or ("-h" in argset):
+    print("Reverse dependency listing tool for zypper based systems\n\n" +
+          "Usage:\n\n" +
+          "rdepends [package name] [--detailed|-d] [--full-tree|-f]\n\n" +
+          "\tpackage name:\tThe package what the listed packages\n\t\t\tdepend on\n" +
+          "\t--detailed|-d:\tShow status, name, kind, edition, arch,\n" +
+          "\t\t\trepository of the listed packages\n" +
+          "\t--full-tree|-f:\tList all packages what indirectly depend\n" + 
+          "\t\t\ton the given package")
+    sys.exit()
+
 if ("--detailed" in argset) or ("-d" in argset):
     detailed = True
 if ("--full-tree" in argset) or ("-f" in argset):
