@@ -61,6 +61,7 @@ def log_text(text):
 def package_provides(package):
     try:
         zypper_process = subprocess.Popen(["zypper",
+                                           "--no-refresh",
                                            "info",
                                            "--provides",
                                            "%s" % package],
@@ -93,6 +94,7 @@ def package_provides(package):
 def searh_requires(symbol):
     try:
         zypper_process = subprocess.Popen(["zypper",
+                                           "--no-refresh",
                                            "--xmlout",
                                            "search",
                                            "-s",
