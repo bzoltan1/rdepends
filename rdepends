@@ -24,6 +24,8 @@ import subprocess
 import os
 import sys
 import re
+from gettext import dgettext
+
 
 # Class to use colorful text output when the script is used on tty
 
@@ -49,6 +51,7 @@ class bcolors:
 
 def log_text(text):
     if consol_log:
+        print("%s" % text)
         sys.stdout.write("%s\r" % text)
         sys.stdout.flush()
         sys.stdout.write("\033[K")  # Clear to the end of line
@@ -77,16 +80,19 @@ def package_provides(package):
     start = False
     provided_symbols = set()
     for line in stdout_value.splitlines():
-        if re.match(r'^Provides.*', line.decode("utf-8")):
+        if re.match(r"^%s.*" % dgettext("zypp",
+                                        "Provides"),
+                    line.decode("utf-8")):
             start = True
             continue
         if start:
             m = re.match(r'^\s+([^\s]+).*', line.decode("utf-8"))
             if m:
                 provided_symbols.add(m.group(1))
-        if not start and re.match(r"package '%s' not found." % package,
-                                  line.decode("utf-8")):
-            return False, line
+        word_list = str(dgettext("zypper", "%s '%s' not found.") % ("", package)).split()
+        str_not_found=("%s %s %s" % (word_list[-3], word_list[-2], word_list[-1]))
+        if re.search(str_not_found, line.decode("utf-8")):
+            return False, line.decode("utf-8")
     return True, provided_symbols
 
 # Search for packaages what require the given symbol
@@ -113,7 +119,12 @@ def searh_requires(symbol):
         return False, stderr_value.decode("utf-8")
     packages = set()
     for line in stdout_value.splitlines():
-        m = re.match(r"^<solvable.*name=\"(\S+)\".*", line.decode("utf-8"))
+        m = re.match("^<solvable.*" +
+                     "%s" % dgettext("zypper",
+                                     "Name")[0:].lower() +
+                     "=\"(\S+)\".*",
+                     line.decode("utf-8"))
+
         if m:
             if detailed:
                 packages.add(line)
@@ -140,7 +151,10 @@ def reverse_dependencies(package):
                 if full_tree:
                     for dependency_package in search_result:
                         if detailed:
-                            m = re.match("^<solvable.*name=\"(\S+)\".*",
+                            m = re.match("^<solvable.*" +
+                                         "%s" % dgettext("zypper",
+                                                         "Name")[0:].lower() +
+                                         "=\"(\S+)\".*",
                                          dependency_package)
                             if m:
                                 reverse_dependencies(m.group(1))
