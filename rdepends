@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # Copyright © 2018 SUSE LLC
 #
@@ -77,14 +77,15 @@ def package_provides(package):
     start = False
     provided_symbols = set()
     for line in stdout_value.splitlines():
-        if re.match("^Provides.*", line):
+        if re.match(r'^Provides.*', line.decode("utf-8")):
             start = True
             continue
         if start:
-            m = re.match("^\s+([^\s]+).*", line)
+            m = re.match(r'^\s+([^\s]+).*', line.decode("utf-8"))
             if m:
                 provided_symbols.add(m.group(1))
-        if not start and re.match("package '%s' not found." % package, line):
+        if not start and re.match(r"package '%s' not found." % package,
+                                  line.decode("utf-8")):
             return False, line
     return True, provided_symbols
 
@@ -112,7 +113,7 @@ def searh_requires(symbol):
         return False, stderr_value.decode("utf-8")
     packages = set()
     for line in stdout_value.splitlines():
-        m = re.match("^<solvable.*name=\"(\S+)\".*", line)
+        m = re.match(r"^<solvable.*name=\"(\S+)\".*", line.decode("utf-8"))
         if m:
             if detailed:
                 packages.add(line)
@@ -164,10 +165,11 @@ if ("--help" in argset) or ("-h" in argset):
     print("Reverse dependency listing tool for zypper based systems\n\n" +
           "Usage:\n\n" +
           "rdepends [package name] [--detailed|-d] [--full-tree|-f]\n\n" +
-          "\tpackage name:\tThe package what the listed packages\n\t\t\tdepend on\n" +
+          "\tpackage name:\tThe package what the listed packages\n" +
+          "\t\t\tdepend on\n" +
           "\t--detailed|-d:\tShow status, name, kind, edition, arch,\n" +
           "\t\t\trepository of the listed packages\n" +
-          "\t--full-tree|-f:\tList all packages what indirectly depend\n" + 
+          "\t--full-tree|-f:\tList all packages what indirectly depend\n" +
           "\t\t\ton the given package")
     sys.exit()
 

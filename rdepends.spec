@@ -12,16 +12,19 @@
 # license that conforms to the Open Source Definition (Version 1.9)
 # published by the Open Source Initiative.
 
+# Please submit bugfixes or comments via https://bugs.opensuse.org/
+#
+
 
 Name:           rdepends
-Version:        0.1 
+Version:        0.1
 Release:        1%{?dist}
 Summary:        Reverse dependency listing tool
-BuildArch:      noarch
 License:        LGPL-2.1-or-later
-Url:            https://github.com/bzoltan1/rdepends.git
+URL:            https://github.com/bzoltan1/rdepends.git
 Source:         rdepends-0.1.tar.gz
-Requires:       python2
+Requires:       python3
+BuildArch:      noarch
 
 %description
 This tool is to list all packages what depend on a given package.
@@ -29,21 +32,13 @@ This tool is to list all packages what depend on a given package.
 %prep
 %setup -q
 
-%build
-
 %install
-mkdir -p %{buildroot}/usr/bin/
-install -m 755 rdepends %{buildroot}/usr/bin/rdepends
-
-%post
-%postun
+mkdir -p %{buildroot}%{_bindir}/
+install -m 755 rdepends %{buildroot}%{_bindir}/rdepends
 
 %files
 %doc README.md
 %license LICENSE
 %{_bindir}/rdepends
 
-
 %changelog
-* Sun Oct 14 2018 Zoltán Balogh  0.1
-  - Initial rpm release

@@ -4,7 +4,7 @@ This tool is to list all packages what depend on a given package.
 
 ## Requirements
 
-The tool is a python2 script what imports
+The tool is a python3 script what imports
 
 * subprocess
 * os
