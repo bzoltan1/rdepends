@@ -24,6 +24,11 @@ import subprocess
 import os
 import sys
 import re
+# Using dgettext to find out the locale translation of some zypper output
+# Forcing the LC_ALL=C.UTF-8 would be the safest solution as soem exotic 
+# languages are using non parsable translations. But with that the tool 
+# would output some possible errors only in english. For most languages 
+# dgettext will do the trick
 from gettext import dgettext
 
 
@@ -89,8 +94,9 @@ def package_provides(package):
             m = re.match(r'^\s+([^\s]+).*', line.decode("utf-8"))
             if m:
                 provided_symbols.add(m.group(1))
-        word_list = str(dgettext("zypper", "%s '%s' not found.") % ("", package)).split()
-        str_not_found=("%s %s %s" % (word_list[-3], word_list[-2], word_list[-1]))
+        wl = str(dgettext("zypper",
+                          "%s '%s' not found.") % ("", package)).split()
+        str_not_found = ("%s %s %s" % (wl[-3], wl[-2], wl[-1]))
         if re.search(str_not_found, line.decode("utf-8")):
             return False, line.decode("utf-8")
     return True, provided_symbols
