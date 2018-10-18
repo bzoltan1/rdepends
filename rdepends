@@ -168,6 +168,10 @@ def reverse_dependencies(package):
                             reverse_dependencies(dependency_package)
 
 
+if os.geteuid() == 0:
+    print("Do not use this tool as root, it would block other zypper operations")
+    sys.exit(0)
+
 if os.isatty(sys.stdout.fileno()):
     consol_log = True
 else:
