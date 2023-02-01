@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright © 2018 SUSE LLC
+# Copyright © 2023 SUSE LLC
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -25,36 +25,18 @@ import os
 import sys
 import re
 # Using dgettext to find out the locale translation of some zypper output
-# Forcing the LC_ALL=C.UTF-8 would be the safest solution as soem exotic 
-# languages are using non parsable translations. But with that the tool 
-# would output some possible errors only in english. For most languages 
+# Forcing the LC_ALL=C.UTF-8 would be the safest solution as soem exotic
+# languages are using non parsable translations. But with that the tool
+# would output some possible errors only in english. For most languages
 # dgettext will do the trick
 from gettext import dgettext
 
 
-# Class to use colorful text output when the script is used on tty
-
-
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-
-    def disable(self):
-        self.HEADER = ''
-        self.OKBLUE = ''
-        self.OKGREEN = ''
-        self.WARNING = ''
-        self.FAIL = ''
-        self.ENDC = ''
-
-# Logging function if the script is used on ttz
-
+# Logging function if the script is used on tty
 
 def log_text(text):
+    if not verbose:
+        return
     if consol_log:
         print("%s" % text)
         sys.stdout.write("%s\r" % text)
@@ -101,7 +83,7 @@ def package_provides(package):
             return False, line.decode("utf-8")
     return True, provided_symbols
 
-# Search for packaages what require the given symbol
+# Search for packages what require the given symbol
 
 
 def searh_requires(symbol):
@@ -145,41 +127,54 @@ def searh_requires(symbol):
 
 def reverse_dependencies(package):
     global merged_result
+    global depth
+    log_text("Package: %s - %d" % (package, depth))
     fetched, search_result = package_provides(package)
     if not fetched:
         log_text(search_result)
         sys.exit()
     else:
+        log_text("%s provides: %s" % (package, search_result))
         for symbol in search_result:
             found, search_result = searh_requires(symbol)
-            if found:
-                merged_result = set().union(merged_result, search_result)
+            if found and len(search_result) > 0:
+                log_text("%s is required by: %s" % (symbol, search_result))
                 if full_tree:
                     for dependency_package in search_result:
-                        if detailed:
-                            m = re.match("^<solvable.*" +
-                                         "%s" % dgettext("zypper",
-                                                         "Name")[0:].lower() +
-                                         "=\"(\S+)\".*",
-                                         dependency_package)
-                            if m:
-                                reverse_dependencies(m.group(1))
+                        if dependency_package not in merged_result:
+                            merged_result.add(dependency_package)
+                            if detailed:
+                                m = re.match("^<solvable.*" +
+                                             "%s" % dgettext("zypper",
+                                                             "Name")[0:].lower() +
+                                             "=\"(\S+)\".*",
+                                             dependency_package)
+                                if m:
+                                    reverse_dependencies(m.group(1))
+                            else:
+                                depth = depth+1
+                                reverse_dependencies(dependency_package)
+                                depth = depth-1
                         else:
-                            reverse_dependencies(dependency_package)
+                            log_text("Redundancy: %s" % dependency_package)
+                else:
+                    merged_result = set().union(merged_result, search_result)
+            else:
+                log_text("%s is not required by any package" % symbol)
 
 
 if os.isatty(sys.stdout.fileno()):
     consol_log = True
 else:
-    bcolors = bcolors()
-    bcolors.disable()
     consol_log = False
 
 # Handle process arguments. Getopt is not optimal in this case as it is
 # better to keep te single package name parameter usage possible
 
+depth = 0
 detailed = False
 full_tree = False
+verbose = False
 argset = set(sys.argv)
 if ("--help" in argset) or ("-h" in argset):
     print("Reverse dependency listing tool for zypper based systems\n\n" +
@@ -197,6 +192,9 @@ if ("--detailed" in argset) or ("-d" in argset):
     detailed = True
 if ("--full-tree" in argset) or ("-f" in argset):
     full_tree = True
+if ("--verbose" in argset) or ("-v" in argset):
+    verbose = True
+
 for arg in sys.argv:
     if arg != sys.argv[0] and re.match("^[^-].*", arg):
         root_package = arg
