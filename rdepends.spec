@@ -17,12 +17,12 @@
 
 
 Name:           rdepends
-Version:        0.1
+Version:        0.2
 Release:        1%{?dist}
 Summary:        Reverse dependency listing tool
 License:        LGPL-2.1-or-later
 URL:            https://github.com/bzoltan1/rdepends.git
-Source:         rdepends-0.1.tar.gz
+Source:         rdepends-0.2.tar.gz
 Requires:       python3
 BuildArch:      noarch
 
