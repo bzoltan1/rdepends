@@ -45,15 +45,17 @@ def log_text(text):
     else:
         print(text)
 
-# List the symbols the given package provides
+# Search for packages what require the given package
 
 
-def package_provides(package):
+def requires_pkg(package):
     try:
         zypper_process = subprocess.Popen(["zypper",
                                            "--no-refresh",
-                                           "info",
-                                           "--provides",
+                                           "--xmlout",
+                                           "se",
+                                           "--match-exact",
+                                           "--requires-pkg",
                                            "%s" % package],
                                           stdin=subprocess.PIPE,
                                           stdout=subprocess.PIPE,
@@ -62,57 +64,11 @@ def package_provides(package):
         return False, "Could not execute zypper ({0}): {1}".format(e.errno,
                                                                    e.strerror)
     stdout_value, stderr_value = zypper_process.communicate()
-    if stderr_value:
-        return False, stderr_value.decode("utf-8")
-    start = False
-    provided_symbols = set()
-    for line in stdout_value.splitlines():
-        if re.match(r"^%s.*" % dgettext("zypp",
-                                        "Provides"),
-                    line.decode("utf-8")):
-            start = True
-            continue
-        if start:
-            m = re.match(r'^\s+([^\s]+).*', line.decode("utf-8"))
-            if m:
-                provided_symbols.add(m.group(1))
-        wl = str(dgettext("zypper",
-                          "%s '%s' not found.") % ("", package)).split()
-        str_not_found = ("%s %s %s" % (wl[-3], wl[-2], wl[-1]))
-        if re.search(str_not_found, line.decode("utf-8")):
-            return False, line.decode("utf-8")
-    return True, provided_symbols
-
-# Search for packages what require the given symbol
-
-
-def searh_requires(symbol):
-    try:
-        zypper_process = subprocess.Popen(["zypper",
-                                           "--no-refresh",
-                                           "--xmlout",
-                                           "search",
-                                           "-s",
-                                           "--requires",
-                                           "--match-exact",
-                                           "%s" % symbol],
-                                          stdin=subprocess.PIPE,
-                                          stdout=subprocess.PIPE,
-                                          stderr=subprocess.PIPE)
-    except OSError as e:
-        return False, "Could not execute zypper ({0}): {1}".format(e.errno,
-                                                                   e.strerror)
-    stdout_value, stderr_value = zypper_process.communicate()
-    if stderr_value:
-        return False, stderr_value.decode("utf-8")
     packages = set()
     for line in stdout_value.splitlines():
-        m = re.match("^<solvable.*" +
-                     "%s" % dgettext("zypper",
-                                     "Name")[0:].lower() +
-                     "=\"(\S+)\".*",
-                     line.decode("utf-8"))
-
+        name = dgettext('zypper', 'Name')[0:].lower()
+        p = fr"^<solvable.*{name}=(\S+).*"
+        m = re.match(p, line.decode('utf-8'))
         if m:
             if detailed:
                 packages.add(line)
@@ -129,38 +85,30 @@ def reverse_dependencies(package):
     global merged_result
     global depth
     log_text("Package: %s - %d" % (package, depth))
-    fetched, search_result = package_provides(package)
+    fetched, search_result = requires_pkg(package)
     if not fetched:
         log_text(search_result)
         sys.exit()
     else:
-        log_text("%s provides: %s" % (package, search_result))
-        for symbol in search_result:
-            found, search_result = searh_requires(symbol)
-            if found and len(search_result) > 0:
-                log_text("%s is required by: %s" % (symbol, search_result))
+        log_text("%s is required by: %s" % (package, search_result))
+        for dependency_package in search_result:
+            if dependency_package not in merged_result:
+                merged_result.add(dependency_package)
                 if full_tree:
-                    for dependency_package in search_result:
-                        if dependency_package not in merged_result:
-                            merged_result.add(dependency_package)
-                            if detailed:
-                                m = re.match("^<solvable.*" +
-                                             "%s" % dgettext("zypper",
-                                                             "Name")[0:].lower() +
-                                             "=\"(\S+)\".*",
-                                             dependency_package)
-                                if m:
-                                    reverse_dependencies(m.group(1))
-                            else:
-                                depth = depth+1
-                                reverse_dependencies(dependency_package)
-                                depth = depth-1
-                        else:
-                            log_text("Redundancy: %s" % dependency_package)
-                else:
-                    merged_result = set().union(merged_result, search_result)
+                    if detailed:
+                        name = dgettext('zypper', 'Name')[0:].lower()
+                        p = fr"^<solvable.*{name}=(\S+).*"
+                        m = re.match(p, dependency_package.decode('utf-8'))
+                        if m:
+                            depth = depth+1
+                            reverse_dependencies(m.group(1))
+                            depth = depth-1
+                    else:
+                        depth = depth+1
+                        reverse_dependencies(dependency_package)
+                        depth = depth-1
             else:
-                log_text("%s is not required by any package" % symbol)
+                log_text("Redundancy: %s" % dependency_package)
 
 
 if os.isatty(sys.stdout.fileno()):
