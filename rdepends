@@ -67,7 +67,7 @@ def requires_pkg(package):
     packages = set()
     for line in stdout_value.splitlines():
         name = dgettext('zypper', 'Name')[0:].lower()
-        p = fr"^<solvable.*{name}=(\S+).*"
+        p = fr"^<solvable.*{name}=\"(\S+)\".*"
         m = re.match(p, line.decode('utf-8'))
         if m:
             if detailed:
@@ -97,7 +97,7 @@ def reverse_dependencies(package):
                 if full_tree:
                     if detailed:
                         name = dgettext('zypper', 'Name')[0:].lower()
-                        p = fr"^<solvable.*{name}=(\S+).*"
+                        p = fr"^<solvable.*{name}=\"(\S+)\".*"
                         m = re.match(p, dependency_package.decode('utf-8'))
                         if m:
                             depth = depth+1
