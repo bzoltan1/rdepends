@@ -16,7 +16,7 @@ and uses zypper
 ## How to use
 
 $ rdepends [ packagename ] [--details] [--full-tree]
-## Simple usecase
+## Simple usecases
 To list the packages directly depend on the package
 ```
 $ rdepends [package name]
